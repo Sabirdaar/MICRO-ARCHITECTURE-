@@ -26,7 +26,7 @@ const [sortOption, setSortOption] = useState("");
   try {
     setLoading(true);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/products/`);
+    const response = await fetch(`${import.meta.env.VITE_API_GATEWAY_URL}/products`);
     console.log("🔗 Fetching from:", response.url);
 
     if (!response.ok) {
@@ -35,7 +35,7 @@ const [sortOption, setSortOption] = useState("");
 
     const data = await response.json();
     console.log("📦 Products from backend:", data);
-    setProducts(data);
+    setProducts(Array.isArray(data)? data : []);
   } catch (error) {
     console.error("❌ Error fetching products:", error);
   } finally {
@@ -91,7 +91,7 @@ const [sortOption, setSortOption] = useState("");
 
     // Send request to FastAPI search endpoint
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/search?query=${encodeURIComponent(searchQuery)}`
+      `${import.meta.env.VITE_API_GATEWAY_URL}/search?query=${encodeURIComponent(searchQuery)}`
     );
 
     if (!response.ok) {
@@ -122,7 +122,7 @@ const handleFilter = async () => {
   try {
     setLoading(true);
 
-    let url = `${import.meta.env.VITE_API_URL}/products/filter?`;
+    let url = `${import.meta.env.VITE_API_GATEWAY_URL}/products/filter?`;
 
     // parse price range
     if (priceRange) {
@@ -197,10 +197,10 @@ const handleFilter = async () => {
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   // Filter products based on search query
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = Array.isArray(products) ? products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) : [];
 
   return (
     <div className="min-h-screen bg-gray-50">

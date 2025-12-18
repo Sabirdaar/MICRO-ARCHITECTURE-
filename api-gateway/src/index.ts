@@ -1,91 +1,44 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 5000;
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(morgan('combined'));
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'ShopEase API Gateway is running',
-    timestamp: new Date().toISOString()
-  });
+const PRODUCT_SERVICE = process.env.PRODUCT_SERVICE_URL || 'http://localhost:8000';
+
+/**
+ * PRODUCT PROXY
+ * NOTE: no pathRewrite here
+ */
+const productProxy = createProxyMiddleware({
+  target: PRODUCT_SERVICE,
+  changeOrigin: true,
+  logLevel: 'debug', // runtime logging only, TS-safe
 });
 
-// Service routes configuration
-const services = {
-  // Product Service (Python - Future)
-  '/products': {
-    target: process.env.PRODUCT_SERVICE_URL || 'http://localhost:5000',
-    changeOrigin: true,
-    pathRewrite: {
-      '^/products': '/api/products'
-    }
-  },
-  // Auth Service (Your current Firebase setup)
-  '/auth': {
-    target: process.env.AUTH_SERVICE_URL || 'http://localhost:4000',
-    changeOrigin: true,
-    pathRewrite: {
-      '^/auth': '/api/auth'
-    }
-  },
-  // Order Service (Java - Future)
-  '/orders': {
-    target: process.env.ORDER_SERVICE_URL || 'http://localhost:8080',
-    changeOrigin: true,
-    pathRewrite: {
-      '^/orders': '/api/orders'
-    }
-  }
-};
+// ✅ Proxy exact paths
+app.use('/products', productProxy);
+app.use('/categories', productProxy);
+app.use('/search', productProxy);
+app.use('/products/filter', productProxy);
 
-// Setup proxy middleware for each service
-Object.entries(services).forEach(([route, config]) => {
-  app.use(route, createProxyMiddleware(config));
+// Health
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'api-gateway' });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
+// Root
+app.get('/', (_req, res) => {
   res.json({
     message: 'ShopEase API Gateway',
-    version: '1.0.0',
-    endpoints: Object.keys(services)
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl
-  });
-});
-
-// Error handler
-app.use((err: any, req: any, res: any, next: any) => {
-  console.error('Gateway Error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    endpoints: ['/products', '/categories', '/search', '/products/filter'],
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`🛍️ ShopEase API Gateway running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 Available routes: ${Object.keys(services).join(', ')}`);
+  console.log(`🚀 Gateway running on http://localhost:${PORT}`);
 });

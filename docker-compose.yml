@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: WMVaY187
+      POSTGRES_DB: products
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  product_service:
+    build: ./product_service
+    container_name: product_service
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: always
+    env_file:
+      - .env.docker
+    depends_on:
+      - product_service
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: always
+    depends_on:
+      - api-gateway
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
