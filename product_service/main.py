@@ -11,11 +11,15 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Product Service")
 
-# 👇 Allow React frontend
+# 👇 Allow React frontend (local and Docker)
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "http://localhost:5000"
+    "http://localhost:5174",
+    "http://localhost:5000",
+    "http://frontend:5173",
+    "http://api-gateway:5000",
+    "http://127.0.0.1:5173"
 ]
 
 app.add_middleware(
@@ -30,6 +34,11 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Product Service API"}
+
+# ---------------- HEALTH CHECK ----------------
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "product-service"}
 
 # ---------------- CATEGORY ----------------
 @app.post("/categories/", response_model=schemas.Category)

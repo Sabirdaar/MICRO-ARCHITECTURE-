@@ -1,308 +1,127 @@
-🛍️ ShopEase - E-commerce Platform
-A modern, microservices-based e-commerce platform built with React, Vite, and Firebase.
+# Micro-Architecture E-commerce Platform
 
-🚀 Current Status
-Frontend MVP: COMPLETED ✅
-Authentication System: LIVE ✅
-Backend Microservices: PLANNED PHASE 🔄
+A modern, microservices-based e-commerce application built with Docker, Node.js, Python/FastAPI, and React.
 
-📋 What's Working Right Now
-✅ Core Features Implemented
-🔐 Authentication & User Management
-Firebase Authentication with email/password
+## 🏗️ Architecture
 
-Google OAuth integration
+The system consists of independent services orchestrated via Docker Compose.
 
-User registration and login flows
+```mermaid
+graph TD
+    Client(Frontend Client) --> Gateway
+    Gateway[API Gateway :5000] -->|/api/users| UserService[User Service :4000]
+    Gateway -->|/api/products| ProductService[Product Service :8000]
+    UserService --> Firebase[(Firebase Auth & Firestore)]
+    ProductService --> Postgres[(PostgreSQL :5432)]
+    ProductService --> Elastic[(Elasticsearch)]
+```
 
-Protected routes and session management
+### Services Overview
 
-User profile display with Firebase user data
+| Service | Technology | Port | Description |
+|:---|:---|:---|:---|
+| **Frontend** | React, Vite, TailwindCSS | `5173` | Modern UI with Firebase Client Auth. |
+| **API Gateway** | Node.js, Express, TypeScript | `5000` | Unified entry point, routes requests to microservices. |
+| **User Service** | Node.js, Express, Firebase Admin | `4000` | Manages user data, authentication verification, and profiles. |
+| **Product Service** | Python, FastAPI, SQLAlchemy | `8000` | Manages product catalog, inventory, and search. |
+| **PostgreSQL** | PostgreSQL 18 | `5432` | Relational database for products. |
 
-Automatic redirect to dashboard after authentication
+---
 
-🎨 User Interface
-Responsive Design - Works on mobile, tablet, and desktop
+## 🚀 Getting Started
 
-Modern Dashboard with tab-based navigation
+### Prerequisites
 
-Beautiful Auth Pages with gradient designs
+-   [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Required)
+-   Node.js & npm (Optional, for local dev)
+-   Python 3.10+ (Optional, for local dev)
 
-Product Catalog with grid layout
+### 1. Installation
 
-Search Functionality (UI ready)
+Clone the repository:
+```bash
+git clone <repository-url>
+cd MICRO-ARCHITECTURE-
+```
 
-Shopping Cart interface (UI ready)
+### 2. Configuration
 
-🛠️ Technical Implementation
-React 18 with Vite for fast development
+Create a `.env` file in the root directory:
 
-Tailwind CSS for styling
+```ini
+# .env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=WMVaY187
+POSTGRES_DB=products
 
-Firebase Auth for authentication
+PRODUCT_SERVICE_URL=http://product_service:8000
+FRONTEND_URL=http://localhost:5173
 
-React Router v6 for navigation
+# Firebase Service Account (JSON Content provided by Google Cloud)
+FIREBASE_PROJECT_ID=multi-lang-e-commerce
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@multi-lang-e-commerce.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+JWT_SECRET=your-secret-key
+```
 
-Context API for state management
+And a `.env` file in `frontend/` directory:
 
-Environment Configuration for different deployment stages
+```ini
+# frontend/.env
+VITE_API_GATEWAY_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_GOOGLE_CLIENT_ID=...
+```
 
-🎯 Live Features You Can Test
-User Registration - Create new accounts with email/password
+### 3. Running the Application
 
-User Login - Access dashboard with credentials
+Start all services using Docker Compose:
 
-Google Sign-In - Quick authentication with Google
+```bash
+docker-compose up -d --build
+```
 
-Product Browsing - View mock product catalog
+-   **Frontend**: [http://localhost:5173](http://localhost:5173)
+-   **API Gateway**: [http://localhost:5000](http://localhost:5000)
+-   **User Service Health**: [http://localhost:4000/health](http://localhost:4000/health)
+-   **Product Service Health**: [http://localhost:8000/health](http://localhost:8000/health)
 
-Search Interface - Ready for backend integration
+---
 
-User Profile - View Firebase user information
+## 🔒 Authentication Flow
 
-Responsive Design - Test on different screen sizes
+1.  **User Logs In** on Frontend using **Firebase Auth** (Email/Password or Google).
+2.  Frontend receives a **Firebase ID Token**.
+3.  Frontend sends this token to Backend (via API Gateway).
+4.  **User Service** verifies the ID Token using **Firebase Admin SDK**.
+5.  If valid, User Service creates/updates the user profile in **Firestore** and returns a session token.
 
-🏗️ Architecture Overview
-text
-Frontend (React + Vite + Firebase)
-    ↓ (Firebase Auth)
-Authentication & User Management
-    ↓ (Ready for API calls)
-Backend Microservices (PLANNED)
-📁 Project Structure
-text
-src/
-├── components/
-│   ├── AuthCard.jsx          # Authentication layout component
-│   ├── ProtectedRoute.jsx    # Route protection
-│   └── SocialProviders.jsx   # Google OAuth
-├── contexts/
-│   └── AuthContext.jsx       # Authentication state management
-├── pages/
-│   ├── LoginPage.jsx         # Login page
-│   ├── SignupPage.jsx        # Registration page
-│   └── Dashboard.jsx         # Main application
-├── services/
-│   └── (Ready for microservices integration)
-└── App.jsx                   # Main application component
-🚀 Quick Start
-Prerequisites
-Node.js 16+
+---
 
-npm or yarn
+## 🛠️ Development
 
-Firebase project setup
-
-Installation & Setup
-Clone the repository
-
-bash
-git clone [repository-url]
-cd shopease
-Install dependencies
-
-bash
+### Local Development (Frontend)
+```bash
+cd frontend
 npm install
-Environment Configuration
-Create .env file in root directory:
-
-env
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-Start development server
-
-bash
 npm run dev
-Open your browser
+```
 
-text
-http://localhost:5173
-Available Scripts
-bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run ESLint
-🎯 Testing the Current Implementation
-1. User Registration Flow
-Navigate to /signup
+### Local Development (Product Service)
+```bash
+cd product_service
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
-Fill in first name, last name, email, and password
+## 🐞 Troubleshooting
 
-Click "Create Account"
-
-You'll be automatically redirected to dashboard
-
-2. User Login Flow
-Navigate to /login
-
-Enter email and password
-
-Click "Sign In"
-
-Access the main dashboard
-
-3. Google Authentication
-Click "Continue with Google" on login/signup pages
-
-Complete Google OAuth flow
-
-Automatic redirect to dashboard
-
-4. Dashboard Features
-Products Tab: Browse mock product catalog
-
-Cart Tab: Shopping cart interface (UI ready)
-
-Orders Tab: Order history interface (UI ready)
-
-Profile Tab: View your Firebase user information
-
-🔄 Ready for Backend Integration
-API Endpoints Expected by Frontend
-Authentication (Currently using Firebase)
-javascript
-// Ready to switch to microservice when available
-POST /api/auth/login
-POST /api/auth/register
-POST /api/auth/logout
-GET  /api/auth/profile
-Product Service
-javascript
-GET /api/products              # Get all products
-GET /api/products/:id          # Get product by ID
-GET /api/products/search?q=    # Search products
-GET /api/products/categories   # Get categories
-Cart Service
-javascript
-GET    /api/cart               # Get user cart
-POST   /api/cart/items         # Add to cart
-PUT    /api/cart/items/:id     # Update cart item
-DELETE /api/cart/items/:id     # Remove from cart
-Order Service
-javascript
-POST /api/orders              # Create order
-GET  /api/orders              # Get user orders
-GET  /api/orders/:id          # Get order details
-🐳 Next Phase: Microservices Development
-Required Backend Services
-API Gateway - Request routing & management
-
-Auth Service - JWT token management & user profiles
-
-Product Service - Product catalog & search
-
-Cart Service - Shopping cart operations
-
-Order Service - Order management & processing
-
-Technology Stack Planning
-Node.js + Express for API services
-
-MongoDB / PostgreSQL for databases
-
-Redis for cart service
-
-Docker for containerization
-
-JWT for authentication
-
-🎨 UI/UX Features
-Design System
-Color Scheme: Blue gradient primary, clean white backgrounds
-
-Typography: Modern, readable fonts
-
-Icons: React Icons + Emoji for visual appeal
-
-Layout: Flexbox + Grid for responsive design
-
-User Experience
-Loading states and smooth transitions
-
-Error handling with user-friendly messages
-
-Mobile-first responsive design
-
-Accessible form controls
-
-Persistent authentication state
-
-🔧 Development Notes
-Current Dependencies
-json
-{
-  "react": "^18.2.0",
-  "react-dom": "^18.2.0", 
-  "react-router-dom": "^6.8.0",
-  "firebase": "^9.17.0",
-  "axios": "^1.3.0",
-  "tailwindcss": "^3.2.0",
-  "react-icons": "^4.7.0"
-}
-Code Quality
-ESLint configuration for code consistency
-
-Component-based architecture
-
-Custom hooks ready for extension
-
-Environment-based configuration
-
-🚧 Known Limitations & Next Steps
-Current Limitations
-Products are mock data (static array)
-
-Cart functionality is UI-only
-
-Order management is UI-only
-
-Search filters locally (not server-side)
-
-Immediate Next Features
-Connect to product microservice for real data
-
-Implement cart functionality with backend
-
-Add order creation and management
-
-Implement product search with backend
-
-Add product categories and filtering
-
-🤝 Team Collaboration
-Development Workflow
-Frontend is production-ready for authentication
-
-Backend services can be developed in parallel
-
-API contracts are defined and ready
-
-Environment configuration supports staged deployment
-
-Getting Started for New Developers
-Clone repository and run npm install
-
-Set up Firebase project and environment variables
-
-Run npm run dev to start development server
-
-Test authentication flows and dashboard features
-
-📞 Support & Documentation
-Firebase Setup: Refer to Firebase console for project configuration
-
-Component Documentation: Check individual component files for usage
-
-State Management: AuthContext provides authentication state
-
-Routing: ProtectedRoute handles authentication guards
-<img width="948" height="414" alt="{10832EAC-1325-4163-9F84-82A1BFAED58B}" src="https://github.com/user-attachments/assets/02a7279c-15bb-42f9-884f-c62c7b6934fe" />
-<img width="949" height="414" alt="image" src="https://github.com/user-attachments/assets/b45ce2f7-a785-4669-8104-5387a850ce4e" />
-
-
-
+-   **500 Internal Server Error on Register**: Check `user_service` logs. Ensure `FIREBASE_PRIVATE_KEY` in `.env` is correctly formatted with `\n` for newlines.
+-   **Google Sign-In "Origin not allowed"**: specific `http://localhost:5173` in Google Cloud Console > APIs & Services > Credentials > Authorized JavaScript origins.

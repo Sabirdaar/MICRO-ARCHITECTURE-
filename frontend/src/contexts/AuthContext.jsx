@@ -1,14 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile
-} from 'firebase/auth';
-import { auth } from '../firebase';
-import { userService } from '../services/firestoreService';
-
+import { userService } from '../services/apiService';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/firebase";
 const AuthContext = createContext();
 
 export function useAuth() {
@@ -21,196 +14,63 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Function to handle Google users
-  const handleGoogleUser = async (user) => {
+  // Load user from token on app start
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      loadUserProfile();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadUserProfile = async () => {
     try {
-      console.log('🔄 Handling Google user:', user.uid);
-      
-      // Check if user profile exists in Firestore
-      const profileResult = await userService.getUserProfile(user.uid);
-      
-      if (profileResult.success) {
-        // User exists in Firestore, use that data
-        console.log('✅ Existing Google user profile found');
-        return {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          emailVerified: user.emailVerified,
-          photoURL: user.photoURL,
-          createdAt: user.metadata.creationTime,
-          lastLogin: user.metadata.lastSignInTime,
-          firstName: profileResult.data.firstName || user.displayName?.split(' ')[0] || '',
-          lastName: profileResult.data.lastName || user.displayName?.split(' ')[1] || ''
-        };
-      } else {
-        // New Google user - create profile in Firestore
-        console.log('📝 Creating new profile for Google user');
-        const firstName = user.displayName?.split(' ')[0] || '';
-        const lastName = user.displayName?.split(' ')[1] || '';
-        
-        const firestoreResult = await userService.createUserProfile(user.uid, {
-          firstName: firstName,
-          lastName: lastName,
-          email: user.email
-        });
-
-        if (!firestoreResult.success) {
-          console.warn('⚠️ Failed to create Firestore profile for Google user:', firestoreResult.error);
-        }
-
-        return {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          emailVerified: user.emailVerified,
-          photoURL: user.photoURL,
-          createdAt: user.metadata.creationTime,
-          lastLogin: user.metadata.lastSignInTime,
-          firstName: firstName,
-          lastName: lastName
-        };
-      }
+      const profile = await userService.getProfile();
+      setUserProfile(profile);
+      setCurrentUser({ uid: profile.id, email: profile.email });
     } catch (error) {
-      console.error('❌ Error handling Google user:', error);
-      // Fallback to basic user data
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        emailVerified: user.emailVerified,
-        photoURL: user.photoURL,
-        createdAt: user.metadata.creationTime,
-        lastLogin: user.metadata.lastSignInTime,
-        firstName: user.displayName?.split(' ')[0] || '',
-        lastName: user.displayName?.split(' ')[1] || ''
-      };
+      console.error('Error loading profile:', error);
+      // Token might be invalid, clear it
+      localStorage.removeItem('authToken');
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        console.log('🔄 Auth state changed - User logged in:', user.uid);
-        setCurrentUser(user);
-        
-        try {
-          let userProfileData;
-          
-          // Check if user signed in with Google
-          const isGoogleUser = user.providerData.some(
-            provider => provider.providerId === 'google.com'
-          );
-          
-          if (isGoogleUser) {
-            console.log('🔐 Google user detected');
-            userProfileData = await handleGoogleUser(user);
-          } else {
-            // Email/password user
-            console.log('📧 Email/password user detected');
-            const profileResult = await userService.getUserProfile(user.uid);
-            
-            if (profileResult.success) {
-              userProfileData = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                emailVerified: user.emailVerified,
-                photoURL: user.photoURL,
-                createdAt: user.metadata.creationTime,
-                lastLogin: user.metadata.lastSignInTime,
-                firstName: profileResult.data.firstName,
-                lastName: profileResult.data.lastName
-              };
-            } else {
-              userProfileData = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                emailVerified: user.emailVerified,
-                photoURL: user.photoURL,
-                createdAt: user.metadata.creationTime,
-                lastLogin: user.metadata.lastSignInTime
-              };
-            }
-          }
-          
-          setUserProfile(userProfileData);
-          console.log('✅ User profile set:', userProfileData);
-          
-        } catch (error) {
-          console.error('❌ Error loading user profile:', error);
-          // Fallback to basic user data
-          setUserProfile({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            emailVerified: user.emailVerified,
-            photoURL: user.photoURL,
-            createdAt: user.metadata.creationTime,
-            lastLogin: user.metadata.lastSignInTime
-          });
-        }
-      } else {
-        console.log('🔄 Auth state changed - No user');
-        setCurrentUser(null);
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
   const login = async (email, password) => {
     try {
-      setError('');
-      console.log('🔄 Attempting login for:', email);
-      
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      console.log('✅ Login successful:', user.uid);
+      setError("");
 
-      // Get user profile from Firestore after login
-      const profileResult = await userService.getUserProfile(user.uid);
-      
-      if (profileResult.success) {
-        setUserProfile({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          emailVerified: user.emailVerified,
-          photoURL: user.photoURL,
-          createdAt: user.metadata.creationTime,
-          lastLogin: user.metadata.lastSignInTime,
-          firstName: profileResult.data.firstName,
-          lastName: profileResult.data.lastName
-        });
-      }
-      
+      // ✅ Firebase client-side login
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await cred.user.getIdToken();
+
+      // ✅ Send ID Token to backend to get profile and backend session token
+      const response = await userService.login({ idToken });
+
+      const { token, user } = response;
+
+      localStorage.setItem("authToken", token);
+
+      setCurrentUser({ uid: user.id, email: user.email });
+      setUserProfile({
+        uid: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      });
+
       return { success: true };
-    } catch (error) {
-      console.error('❌ Login error:', error);
-      let message = 'Login failed. Please try again.';
-      switch (error.code) {
-        case 'auth/invalid-email':
-          message = 'Invalid email address.';
-          break;
-        case 'auth/user-disabled':
-          message = 'This account has been disabled.';
-          break;
-        case 'auth/user-not-found':
-          message = 'No account found with this email.';
-          break;
-        case 'auth/wrong-password':
-          message = 'Incorrect password.';
-          break;
-        default:
-          message = error.message;
+    } catch (err) {
+      console.error("Login error:", err);
+      // Map Firebase error codes to user-friendly messages
+      if (err.code === 'auth/invalid-credential') {
+        setError("Invalid email or password");
+      } else {
+        setError(err.message);
       }
-      setError(message);
-      return { success: false, error: message };
+      return { success: false };
     }
   };
 
@@ -218,142 +78,76 @@ export function AuthProvider({ children }) {
     try {
       setError('');
       console.log('🔄 Starting registration process...', userData);
-      
-      // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        userData.email, 
-        userData.password
-      );
-      const user = userCredential.user;
-      
-      console.log('✅ Firebase Auth user created:', user.uid);
 
-      // 2. Update Firebase profile with display name
-      let displayName = '';
-      if (userData.firstName || userData.lastName) {
-        displayName = `${userData.firstName} ${userData.lastName}`.trim();
-        await updateProfile(user, {
-          displayName: displayName
-        });
-        console.log('✅ Firebase profile updated with display name:', displayName);
-      }
+      const response = await userService.register(userData);
 
-      // 3. Create user profile in Firestore
-      console.log('📝 Creating Firestore profile...');
-      const firestoreResult = await userService.createUserProfile(user.uid, {
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email
+      console.log('✅ Registration successful:', response.user.id);
+
+      // Store token
+      localStorage.setItem('authToken', response.token);
+
+      // Set user data
+      setCurrentUser({ uid: response.user.id, email: response.user.email });
+      setUserProfile({
+        uid: response.user.id,
+        email: response.user.email,
+        firstName: response.user.firstName,
+        lastName: response.user.lastName,
       });
 
-      console.log('📊 Firestore creation result:', firestoreResult);
-
-      // 4. Set user profile in context
-      const userProfileData = {
-        uid: user.uid,
-        email: user.email,
-        displayName: displayName || user.displayName,
-        emailVerified: user.emailVerified,
-        photoURL: user.photoURL,
-        createdAt: user.metadata.creationTime,
-        lastLogin: user.metadata.lastSignInTime,
-        firstName: userData.firstName,
-        lastName: userData.lastName
-      };
-
-      setUserProfile(userProfileData);
-      setCurrentUser(user);
-      
       console.log('🎉 Registration completed successfully');
-      return { 
-        success: true,
-        firestoreSuccess: firestoreResult.success
-      };
-      
+      return { success: true };
     } catch (error) {
       console.error('❌ Registration error:', error);
-      
+
       let message = 'Registration failed. Please try again.';
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          message = 'An account with this email already exists.';
-          break;
-        case 'auth/invalid-email':
-          message = 'Invalid email address.';
-          break;
-        case 'auth/weak-password':
-          message = 'Password should be at least 6 characters.';
-          break;
-        case 'auth/network-request-failed':
-          message = 'Network error. Please check your connection.';
-          break;
-        default:
-          message = error.message || 'Registration failed. Please try again.';
+      if (error.response?.data?.error) {
+        message = error.response.data.error;
       }
-      
+
       setError(message);
       return { success: false, error: message };
     }
   };
 
-  const logout = async () => {
+  const googleLogin = async (idToken, email, firstName, lastName) => {
     try {
-      console.log('🚪 Logging out user...');
-      await signOut(auth);
-      setCurrentUser(null);
-      setUserProfile(null);
       setError('');
-      console.log('✅ Logout successful');
+      console.log('🔄 Attempting Google login...');
+
+      const response = await userService.googleAuth(idToken, email, firstName, lastName);
+
+      console.log('✅ Google login successful:', response.user.id);
+
+      // Store token
+      localStorage.setItem('authToken', response.token);
+
+      // Set user data
+      setCurrentUser({ uid: response.user.id, email: response.user.email });
+      setUserProfile({
+        uid: response.user.id,
+        email: response.user.email,
+        firstName: response.user.firstName,
+        lastName: response.user.lastName,
+      });
+
+      return { success: true };
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      setError('Logout failed. Please try again.');
+      console.error('❌ Google login error:', error);
+      let message = 'Google login failed. Please try again.';
+      if (error.response?.data?.error) {
+        message = error.response.data.error;
+      }
+      setError(message);
+      return { success: false, error: message };
     }
   };
 
-  const updateUserProfile = async (profileData) => {
-    try {
-      if (currentUser) {
-        // Update Firebase profile
-        await updateProfile(currentUser, profileData);
-        
-        // Update Firestore profile
-        const firestoreResult = await userService.updateUserProfile(currentUser.uid, profileData);
-        
-        // Update local state
-        setUserProfile(prev => ({
-          ...prev,
-          ...profileData
-        }));
-        
-        return { 
-          success: true,
-          firestoreSuccess: firestoreResult.success 
-        };
-      }
-      return { success: false, error: 'No user logged in' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  const refreshUserProfile = async () => {
-    if (currentUser) {
-      try {
-        const profileResult = await userService.getUserProfile(currentUser.uid);
-        if (profileResult.success) {
-          setUserProfile(prev => ({
-            ...prev,
-            ...profileResult.data
-          }));
-          return { success: true };
-        }
-        return { success: false, error: profileResult.error };
-      } catch (error) {
-        return { success: false, error: error.message };
-      }
-    }
-    return { success: false, error: 'No user logged in' };
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    setCurrentUser(null);
+    setUserProfile(null);
+    setError('');
   };
 
   const clearError = () => {
@@ -361,23 +155,15 @@ export function AuthProvider({ children }) {
   };
 
   const value = {
-    // State
     currentUser,
     userProfile,
-    loading,
-    error,
-    
-    // Auth methods
     login,
     register,
+    googleLogin,
     logout,
-    updateProfile: updateUserProfile,
-    refreshUserProfile,
     clearError,
-    
-    // Helpers
-    isAuthenticated: !!currentUser,
-    isEmailVerified: currentUser?.emailVerified || false,
+    error,
+    loading,
   };
 
   return (

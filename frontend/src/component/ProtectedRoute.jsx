@@ -2,18 +2,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute({ children }) {
-  const { currentUser, isAuthenticated } = useAuth();
+  const { currentUser, loading } = useAuth();
   const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (loading) {
     return (
-      <Navigate 
-        to="/login" 
-        state={{ 
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Navigate
+        to="/login"
+        state={{
           from: location,
-          message: "Please log in to access the dashboard" 
-        }} 
-        replace 
+          message: "Please log in to access the dashboard"
+        }}
+        replace
       />
     );
   }

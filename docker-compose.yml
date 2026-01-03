@@ -9,8 +9,16 @@ services:
       POSTGRES_DB: products
     volumes:
       - postgres_data:/var/lib/postgresql
+      - ./Database:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   product_service:
     build: ./product_service
@@ -18,10 +26,38 @@ services:
     restart: always
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:WMVaY187@postgres:5432/products
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user_service:
+    build: ./user_service
+    container_name: user_service
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   api-gateway:
     build: ./api-gateway
@@ -29,19 +65,43 @@ services:
     restart: always
     env_file:
       - .env.docker
+    environment:
+      - NODE_ENV=production
+      - USER_SERVICE_URL=http://user_service:4000
+      - PRODUCT_SERVICE_URL=http://product_service:8000
     depends_on:
-      - product_service
+      product_service:
+        condition: service_healthy
+      user_service:
+        condition: service_healthy
     ports:
       - "5000:5000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build: ./frontend
     container_name: frontend
     restart: always
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:5000
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     ports:
       - "5173:5173"
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
