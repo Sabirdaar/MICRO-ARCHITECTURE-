@@ -138,58 +138,64 @@ router.post('/google-auth', async (req, res) => {
   try {
     const { idToken, email, firstName, lastName } = req.body;
 
-    if (!idToken || !email) {
-      return res.status(400).json({ error: 'ID token and email are required' });
+    console.log('Google Auth Request:', { email, firstName, lastName });
+
+    if (!idToken) {
+      console.log('Google Auth Error: Missing idToken');
+      return res.status(400).json({ error: 'ID token is required' });
     }
 
-    // Frontend sends Google OIDC Token.
-    // To verify strictly we need a library, but relying on implicit trust from Frontend (via HTTPS) + matching email is "acceptable" for simple MVP 
-    // IF we trust the source.
-    // BETTER: Create/Update Firebase User with this email.
-
-    let userRecord;
+    // Verify the ID token - THIS IS THE PROPER WAY
+    let decodedToken;
     try {
-      userRecord = await admin.auth().getUserByEmail(email);
-    } catch (e) {
-      if (e.code === 'auth/user-not-found') {
-        // Create new user
-        userRecord = await admin.auth().createUser({
-          email,
-          emailVerified: true,
-          displayName: `${firstName} ${lastName}`,
-        });
-      } else {
-        throw e;
-      }
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+      console.log('ID Token verified successfully for UID:', decodedToken.uid);
+    } catch (error) {
+      console.error('Error verifying ID token:', error);
+      return res.status(401).json({ error: 'Invalid ID token' });
     }
 
-    const userId = userRecord.uid;
+    const userId = decodedToken.uid;
+    const userEmail = decodedToken.email;
 
-    // Create/Update profile
+    // Optional: Check if email matches token (security check)
+    if (email && email !== userEmail) {
+      console.warn('Warning: Request email does not match Token email', { requestEmail: email, tokenEmail: userEmail });
+    }
+
+    // Create/Update profile in Firestore
     const userRef = db.collection('users').doc(userId);
     const doc = await userRef.get();
 
     if (!doc.exists) {
+      console.log('Creating new user profile in Firestore:', userId);
       await userRef.set({
         firstName,
         lastName,
-        email,
+        email: userEmail,
         createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    } else {
+      console.log('User profile exists, updating timestamp:', userId);
+      await userRef.update({
         updatedAt: new Date()
       });
     }
 
+    // Create backend session token
     const token = jwt.sign(
-      { id: userId, email },
+      { id: userId, email: userEmail },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log('Google Auth Success, returning backend token');
     res.json({
       message: 'Google authentication successful',
       user: {
         id: userId,
-        email,
+        email: userEmail,
         firstName: doc.exists ? doc.data().firstName : firstName,
         lastName: doc.exists ? doc.data().lastName : lastName,
       },

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { userService } from '../services/apiService';
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 const AuthContext = createContext();
 
@@ -110,19 +110,33 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const googleLogin = async (idToken, email, firstName, lastName) => {
+  const googleLogin = async () => {
     try {
       setError('');
-      console.log('🔄 Attempting Google login...');
+      console.log('🔄 Clicked Google Sign-In...');
 
-      const response = await userService.googleAuth(idToken, email, firstName, lastName);
+      // 1. Trigger Firebase Popup
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
 
-      console.log('✅ Google login successful:', response.user.id);
+      // 2. Get User Info
+      const user = result.user;
+      const idToken = await user.getIdToken();
 
-      // Store token
+      console.log('✅ Firebase Google Sign-In Successful:', user.uid);
+
+      // 3. Send to Backend
+      // We will parse name from displayName to send to backend for profile creation
+      const [firstName, ...rest] = (user.displayName || "User").split(" ");
+      const lastName = rest.join(" ") || "";
+
+      const response = await userService.googleAuth(idToken, user.email, firstName, lastName);
+
+      console.log('✅ Backend Google login successful:', response.user.id);
+
+      // 4. Store Token & State
       localStorage.setItem('authToken', response.token);
 
-      // Set user data
       setCurrentUser({ uid: response.user.id, email: response.user.email });
       setUserProfile({
         uid: response.user.id,
@@ -137,6 +151,8 @@ export function AuthProvider({ children }) {
       let message = 'Google login failed. Please try again.';
       if (error.response?.data?.error) {
         message = error.response.data.error;
+      } else if (error.message) {
+        message = error.message;
       }
       setError(message);
       return { success: false, error: message };

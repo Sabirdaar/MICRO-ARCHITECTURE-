@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AuthCard from "../component/AuthCard";
+import SocialProviders from "../component/SocialProviders";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,14 +28,14 @@ const Login = () => {
     setLoading(true);
 
     const result = await login(email, password);
-    
+
     if (result.success) {
       // Clear form on success
       setEmail("");
       setPassword("");
       navigate(from, { replace: true });
     }
-    
+
     setLoading(false);
   };
 
@@ -52,7 +53,7 @@ const Login = () => {
             autoComplete="email"
           />
         </div>
-        
+
         <div className="relative">
           <input
             type={showPassword ? "text" : "password"}
@@ -81,11 +82,10 @@ const Login = () => {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full py-3 mt-2 rounded-md text-white font-semibold transition-all ${
-            loading
-              ? "bg-indigo-400 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
-          }`}
+          className={`w-full py-3 mt-2 rounded-md text-white font-semibold transition-all ${loading
+            ? "bg-indigo-400 cursor-not-allowed"
+            : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
+            }`}
         >
           {loading ? (
             <span className="flex items-center justify-center">
@@ -100,14 +100,17 @@ const Login = () => {
 
       <p className="text-center text-sm mt-6 text-gray-600">
         Don't have an account?{" "}
-        <Link 
-          to="/signup" 
+        <Link
+          to="/signup"
           className="text-indigo-600 font-medium hover:underline hover:text-indigo-700"
           onClick={clearError}
         >
           Sign Up
         </Link>
       </p>
+
+      <div className="text-center text-sm text-gray-500 mt-6 mb-2">or continue with</div>
+      <SocialProviders />
 
       <div className="mt-6 pt-6 border-t border-gray-200">
         <p className="text-xs text-center text-gray-500">
