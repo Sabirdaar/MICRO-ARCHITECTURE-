@@ -40,15 +40,10 @@ export const userService = {
   },
 
   // Get user profile
-  getProfile: async (token) => {
-    const res = await axios.get("/api/users/profile", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return res.data;
+  getProfile: async () => {
+    const response = await apiClient.get("/api/users/profile");
+    return response.data;
   },
-
 
   // Update user profile
   updateProfile: async (updates) => {
@@ -56,7 +51,3 @@ export const userService = {
     return response.data;
   },
 };
-
-// Your API calls will now go through the gateway:
-// GET /products → API Gateway → Python Product Service
-// POST /api/users/login → API Gateway → User Service

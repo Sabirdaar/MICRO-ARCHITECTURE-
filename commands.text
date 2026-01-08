@@ -1,0 +1,59 @@
+# ==========================================
+# 🐘 POSTGRES DATABASE COMMANDS
+# ==========================================
+
+# 1. CHECK DATABASES
+# List all databases running in the container
+docker exec -it postgres psql -U postgres -c "\l"
+
+
+# ==========================================
+# 📦 PRODUCT DATABASE (Name: 'products')
+# ==========================================
+
+# OPTION A: One-Liner Commands
+# ----------------------------
+# List all tables in products DB
+docker exec -it postgres psql -U postgres -d products -c "\dt"
+
+# View all data in 'products' table
+docker exec -it postgres psql -U postgres -d products -c "SELECT * FROM products;"
+
+
+# OPTION B: Interactive Shell (Best for exploring)
+# -----------------------------------------------
+# 1. Run this command to enter the DB:
+docker exec -it postgres psql -U postgres -d products
+
+# 2. Once inside, type these commands:
+# \dt                  (List tables)
+# SELECT * FROM products; (View data)
+# \q                   (Quit/Exit)
+
+
+# ==========================================
+# 🛒 ORDER DATABASE (Name: 'orderservice_db')
+# ==========================================
+
+# OPTION A: One-Liner Commands
+# ----------------------------
+# List all tables in order DB
+docker exec -it postgres psql -U postgres -d orderservice_db -c "\dt"
+
+# View all data in 'orders' table
+docker exec -it postgres psql -U postgres -d orderservice_db -c "SELECT * FROM orders;"
+
+# View specific columns (id, status, total)
+docker exec -it postgres psql -U postgres -d orderservice_db -c "SELECT id, status, total_amount FROM orders;"
+
+
+# OPTION B: Interactive Shell
+# ---------------------------
+# 1. Enter the DB:
+docker exec -it postgres psql -U postgres -d orderservice_db
+
+# 2. Key Commands:
+# \dt
+# SELECT * FROM orders;
+# \d orders  (Describe table structure)
+# \q

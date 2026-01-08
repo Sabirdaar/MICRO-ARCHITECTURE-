@@ -48,6 +48,7 @@ router.post('/register', async (req, res) => {
       firstName,
       lastName,
       email,
+      role: 'user', // Default role
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -65,7 +66,9 @@ router.post('/register', async (req, res) => {
         id: userId,
         email,
         firstName,
+        firstName,
         lastName,
+        role: 'user',
       },
       token,
     });
@@ -123,7 +126,9 @@ router.post('/login', async (req, res) => {
         id: userId,
         email: userEmail,
         firstName: userData.firstName || '',
+        firstName: userData.firstName || '',
         lastName: userData.lastName || '',
+        role: userData.role || 'user',
       },
       token,
     });
@@ -173,6 +178,8 @@ router.post('/google-auth', async (req, res) => {
         firstName,
         lastName,
         email: userEmail,
+        email: userEmail,
+        role: 'user',
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -198,6 +205,7 @@ router.post('/google-auth', async (req, res) => {
         email: userEmail,
         firstName: doc.exists ? doc.data().firstName : firstName,
         lastName: doc.exists ? doc.data().lastName : lastName,
+        role: doc.exists ? doc.data().role : 'user',
       },
       token,
     });
@@ -255,6 +263,32 @@ router.put('/profile', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user public profile by ID (for Admin Dashboard)
+router.get('/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = userDoc.data();
+
+    // Return only public info
+    res.json({
+      id: userId,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email, // Optional, might be useful for admin
+      role: userData.role
+    });
+  } catch (error) {
+    console.error('Get public profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

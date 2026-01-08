@@ -23,6 +23,8 @@ const PRODUCT_SERVICE = process.env.PRODUCT_SERVICE_URL ||
   (process.env.NODE_ENV === 'production' ? 'http://product_service:8000' : 'http://localhost:8000');
 const USER_SERVICE = process.env.USER_SERVICE_URL ||
   (process.env.NODE_ENV === 'production' ? 'http://user_service:4000' : 'http://localhost:4000');
+const ORDER_SERVICE = process.env.ORDER_SERVICE_URL ||
+  (process.env.NODE_ENV === 'production' ? 'http://orderservice:8085' : 'http://localhost:8085');
 
 /**
  * PRODUCT PROXY
@@ -41,9 +43,6 @@ const userProxy = createProxyMiddleware({
   target: USER_SERVICE,
   changeOrigin: true,
   logLevel: 'debug',
-
-
-
   timeout: 30000,
   proxyTimeout: 30000,
 
@@ -67,6 +66,36 @@ const userProxy = createProxyMiddleware({
   },
 });
 
+/**
+ * ORDER PROXY
+ */
+const orderProxy = createProxyMiddleware({
+  target: ORDER_SERVICE,
+  changeOrigin: true,
+  logLevel: 'debug',
+  timeout: 30000,
+  proxyTimeout: 30000,
+
+  onError: (err, req, res) => {
+    console.error('[HPM] Order service proxy error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Order service unavailable' });
+    }
+  },
+
+  onProxyReq: (proxyReq, req) => {
+    console.log(
+      `[HPM] ${req.method} ${req.originalUrl} → ${ORDER_SERVICE}${proxyReq.path}`
+    );
+  },
+
+  onProxyRes: (proxyRes, req) => {
+    console.log(
+      `[HPM] ${proxyRes.statusCode} from ORDER_SERVICE for ${req.method} ${req.originalUrl}`
+    );
+  },
+});
+
 
 // ✅ Proxy exact paths
 app.use('/products', productProxy);
@@ -76,6 +105,9 @@ app.use('/products/filter', productProxy);
 
 // User routes
 app.use('/api/users', userProxy);
+
+// Order routes
+app.use('/api/orders', orderProxy);
 
 // Body parsing (Moved after proxies to avoid stream consumption)
 app.use(express.json({ limit: '10mb' }));
@@ -90,7 +122,7 @@ app.get('/health', (_req, res) => {
 app.get('/', (_req, res) => {
   res.json({
     message: 'ShopEase API Gateway',
-    endpoints: ['/products', '/categories', '/search', '/products/filter', '/api/users'],
+    endpoints: ['/products', '/categories', '/search', '/products/filter', '/api/users', '/api/orders'],
   });
 });
 

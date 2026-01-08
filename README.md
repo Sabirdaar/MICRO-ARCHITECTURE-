@@ -11,9 +11,10 @@ graph TD
     Client(Frontend Client) --> Gateway
     Gateway[API Gateway :5000] -->|/api/users| UserService[User Service :4000]
     Gateway -->|/api/products| ProductService[Product Service :8000]
+    Gateway -->|/api/orders| OrderService[Order Service :8085]
     UserService --> Firebase[(Firebase Auth & Firestore)]
     ProductService --> Postgres[(PostgreSQL :5432)]
-    ProductService --> Elastic[(Elasticsearch)]
+    OrderService --> Postgres
 ```
 
 ### Services Overview
@@ -24,7 +25,8 @@ graph TD
 | **API Gateway** | Node.js, Express, TypeScript | `5000` | Unified entry point, routes requests to microservices. |
 | **User Service** | Node.js, Express, Firebase Admin | `4000` | Manages user data, authentication verification, and profiles. |
 | **Product Service** | Python, FastAPI, SQLAlchemy | `8000` | Manages product catalog, inventory, and search. |
-| **PostgreSQL** | PostgreSQL 18 | `5432` | Relational database for products. |
+| **Order Service** | Java, Spring Boot, JPA | `8085` | Manages orders and order items with cash payment. |
+| **PostgreSQL** | PostgreSQL 18 | `5432` | Relational database for products and orders. |
 
 ---
 
@@ -90,6 +92,7 @@ docker-compose up -d --build
 -   **API Gateway**: [http://localhost:5000](http://localhost:5000)
 -   **User Service Health**: [http://localhost:4000/health](http://localhost:4000/health)
 -   **Product Service Health**: [http://localhost:8000/health](http://localhost:8000/health)
+-   **Order Service**: [http://localhost:8085/api/orders/](http://localhost:8085/api/orders/)
 
 ---
 

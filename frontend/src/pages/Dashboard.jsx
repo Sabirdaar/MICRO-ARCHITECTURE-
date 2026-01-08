@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import CheckoutModal from '../component/CheckoutModal';
 
 export default function Dashboard() {
   const { currentUser, userProfile, logout, refreshUserProfile } = useAuth();
@@ -12,9 +13,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // 🔽 New filter & sort states
-const [selectedCategory, setSelectedCategory] = useState("");
-const [priceRange, setPriceRange] = useState("");
-const [sortOption, setSortOption] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [priceRange, setPriceRange] = useState("");
+  const [sortOption, setSortOption] = useState("");
+
+  // Modal state
+  const [isCheckoutModalOpen, setCheckoutModalOpen] = useState(false);
 
 
   // Fetch products from Python service (when ready)
@@ -22,26 +26,33 @@ const [sortOption, setSortOption] = useState("");
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
-  try {
-    setLoading(true);
-
-    const response = await fetch(`${import.meta.env.VITE_API_GATEWAY_URL}/products`);
-    console.log("🔗 Fetching from:", response.url);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+  // Fetch orders when orders tab is active
+  useEffect(() => {
+    if (activeTab === 'orders' && currentUser) {
+      fetchOrders();
     }
+  }, [activeTab, currentUser]);
 
-    const data = await response.json();
-    console.log("📦 Products from backend:", data);
-    setProducts(Array.isArray(data)? data : []);
-  } catch (error) {
-    console.error("❌ Error fetching products:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${import.meta.env.VITE_API_GATEWAY_URL}/products`);
+      console.log("🔗 Fetching from:", response.url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("📦 Products from backend:", data);
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("❌ Error fetching products:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const handleAddToCart = (product) => {
@@ -76,84 +87,84 @@ const [sortOption, setSortOption] = useState("");
   };
 
   const handleSearch = async (e) => {
-  // Prevent form reload
-  if (e && e.preventDefault) e.preventDefault();
+    // Prevent form reload
+    if (e && e.preventDefault) e.preventDefault();
 
-  // If search box is empty, reload all products
-  if (searchQuery.trim() === "") {
-    fetchProducts();
-    return;
-  }
-
-  try {
-    setLoading(true);
-    console.log("🔍 Searching for:", searchQuery);
-
-    // Send request to FastAPI search endpoint
-    const response = await fetch(
-      `${import.meta.env.VITE_API_GATEWAY_URL}/search?query=${encodeURIComponent(searchQuery)}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // If search box is empty, reload all products
+    if (searchQuery.trim() === "") {
+      fetchProducts();
+      return;
     }
 
-    const result = await response.json();
-    console.log("📦 Search results:", result);
+    try {
+      setLoading(true);
+      console.log("🔍 Searching for:", searchQuery);
 
-    // Set products to search results
-    if (result.results && Array.isArray(result.results)) {
-      setProducts(result.results);
-    } else {
-      setProducts([]);
+      // Send request to FastAPI search endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_API_GATEWAY_URL}/search?query=${encodeURIComponent(searchQuery)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("📦 Search results:", result);
+
+      // Set products to search results
+      if (result.results && Array.isArray(result.results)) {
+        setProducts(result.results);
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error("❌ Search failed:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("❌ Search failed:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
 
-// 🔽 Filter handler
-const handleFilter = async () => {
-  try {
-    setLoading(true);
+  // 🔽 Filter handler
+  const handleFilter = async () => {
+    try {
+      setLoading(true);
 
-    let url = `${import.meta.env.VITE_API_GATEWAY_URL}/products/filter?`;
+      let url = `${import.meta.env.VITE_API_GATEWAY_URL}/products/filter?`;
 
-    // parse price range
-    if (priceRange) {
-      const [min, max] = priceRange.split("-");
-      url += `min_price=${min}&max_price=${max}&`;
+      // parse price range
+      if (priceRange) {
+        const [min, max] = priceRange.split("-");
+        url += `min_price=${min}&max_price=${max}&`;
+      }
+
+      // category
+      if (selectedCategory) {
+        url += `category_id=${selectedCategory}&`;
+      }
+
+      // sort
+      if (sortOption) {
+        url += `sort_by=${sortOption}&`;
+      }
+
+      console.log("🔗 Filter URL:", url);
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      const data = await response.json();
+      console.log("📦 Filtered products:", data);
+      setProducts(data);
+    } catch (error) {
+      console.error("❌ Filter failed:", error);
+    } finally {
+      setLoading(false);
     }
-
-    // category
-    if (selectedCategory) {
-      url += `category_id=${selectedCategory}&`;
-    }
-
-    // sort
-    if (sortOption) {
-      url += `sort_by=${sortOption}&`;
-    }
-
-    console.log("🔗 Filter URL:", url);
-
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-
-    const data = await response.json();
-    console.log("📦 Filtered products:", data);
-    setProducts(data);
-  } catch (error) {
-    console.error("❌ Filter failed:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
 
@@ -162,22 +173,105 @@ const handleFilter = async () => {
 
 
 
-  const handleCheckout = () => {
+  const handleCheckoutClick = () => {
     if (cart.length === 0) {
       alert('Your cart is empty!');
       return;
     }
-    // TODO: Connect to Order Service (Java)
-    const order = {
-      id: Date.now(),
-      items: cart,
-      total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      date: new Date().toISOString(),
-      status: 'pending'
-    };
-    setOrders(prev => [order, ...prev]);
-    setCart([]);
-    alert('Order placed successfully!');
+    setCheckoutModalOpen(true);
+  };
+
+  const handleCheckoutConfirm = async (address) => {
+    try {
+      setCheckoutModalOpen(false); // Close modal first
+      setLoading(true);
+
+      // Get auth token from local storage
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error("No authentication token found. Please login again.");
+      }
+
+      // Prepare order data
+      const orderData = {
+        userId: currentUser.uid,
+        address: address,
+        items: cart.map(item => ({
+          productId: item.id.toString(),
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+
+      console.log('📦 Creating order:', orderData);
+
+      // Send to order-service via API Gateway
+      const response = await fetch(`${import.meta.env.VITE_API_GATEWAY_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create order: ${response.status} - ${errorText}`);
+      }
+
+      const createdOrder = await response.json();
+      console.log('✅ Order created:', createdOrder);
+
+      // Add to local orders list for immediate display
+      setOrders(prev => [createdOrder, ...prev]);
+
+      // Clear cart
+      setCart([]);
+
+      // Switch to orders tab to show the new order
+      setActiveTab('orders');
+
+      alert(`Order placed successfully! Order ID: ${createdOrder.id}\nStatus: ${createdOrder.status}`);
+    } catch (error) {
+      console.error('❌ Checkout failed:', error);
+      alert(`Failed to place order: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrders = async () => {
+    if (!currentUser) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+
+      console.log('🔍 Fetching orders for user:', currentUser.uid);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_GATEWAY_URL}/api/orders/user/${currentUser.uid}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch orders: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📦 Orders from backend:', data);
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('❌ Error fetching orders:', error);
+      // Don't show alert for fetch errors, just log them
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -216,8 +310,8 @@ const handleFilter = async () => {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`${activeTab === tab
-                        ? 'border-blue-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      ? 'border-blue-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                       } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium capitalize`}
                   >
                     {tab}
@@ -276,53 +370,53 @@ const handleFilter = async () => {
           {activeTab === 'products' && (
             <div>
               <div className="flex justify-between items-center mb-6">
-              {/* 🔽 Filter & Sort Controls */}
-<div className="flex flex-wrap gap-3 mb-6">
-  {/* Category Filter */}
-  <select
-    value={selectedCategory}
-    onChange={(e) => setSelectedCategory(e.target.value)}
-    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-  >
-    <option value="">All Categories</option>
-    <option value="1">Electronics</option>
-    <option value="2">Clothing</option>
-    <option value="3">Home</option>
-    {/* Add more categories here if needed */}
-  </select>
+                {/* 🔽 Filter & Sort Controls */}
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {/* Category Filter */}
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="1">Electronics</option>
+                    <option value="2">Clothing</option>
+                    <option value="3">Home</option>
+                    {/* Add more categories here if needed */}
+                  </select>
 
-  {/* Price Range */}
-  <select
-    value={priceRange}
-    onChange={(e) => setPriceRange(e.target.value)}
-    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-  >
-    <option value="">All Prices</option>
-    <option value="0-50">$0 – $50</option>
-    <option value="50-200">$50 – $200</option>
-    <option value="200-500">$200 – $500</option>
-  </select>
+                  {/* Price Range */}
+                  <select
+                    value={priceRange}
+                    onChange={(e) => setPriceRange(e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  >
+                    <option value="">All Prices</option>
+                    <option value="0-50">$0 – $50</option>
+                    <option value="50-200">$50 – $200</option>
+                    <option value="200-500">$200 – $500</option>
+                  </select>
 
-  {/* Sort */}
-  <select
-    value={sortOption}
-    onChange={(e) => setSortOption(e.target.value)}
-    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-  >
-    <option value="">Sort By</option>
-    <option value="price_asc">Price: Low → High</option>
-    <option value="price_desc">Price: High → Low</option>
-    <option value="newest">Newest</option>
-  </select>
+                  {/* Sort */}
+                  <select
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  >
+                    <option value="">Sort By</option>
+                    <option value="price_asc">Price: Low → High</option>
+                    <option value="price_desc">Price: High → Low</option>
+                    <option value="newest">Newest</option>
+                  </select>
 
-  {/* Apply Button */}
-  <button
-    onClick={handleFilter}
-    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
-  >
-    Apply
-  </button>
-</div>
+                  {/* Apply Button */}
+                  <button
+                    onClick={handleFilter}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
+                  >
+                    Apply
+                  </button>
+                </div>
 
                 <h2 className="text-2xl font-bold text-gray-900">All Products</h2>
                 <span className="text-gray-600">{filteredProducts.length} products</span>
@@ -347,8 +441,8 @@ const handleFilter = async () => {
                             {product.name}
                           </h3>
                           <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-  {product.category?.name || "Uncategorized"}
-</span>
+                            {product.category?.name || "Uncategorized"}
+                          </span>
 
                         </div>
                         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
@@ -453,7 +547,7 @@ const handleFilter = async () => {
                         <span>${cartTotal.toFixed(2)}</span>
                       </div>
                       <button
-                        onClick={handleCheckout}
+                        onClick={handleCheckoutClick}
                         className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-md font-semibold"
                       >
                         Proceed to Checkout
@@ -464,6 +558,14 @@ const handleFilter = async () => {
               </div>
             </div>
           )}
+
+          {/* Checkout Modal */}
+          <CheckoutModal
+            isOpen={isCheckoutModalOpen}
+            onClose={() => setCheckoutModalOpen(false)}
+            onConfirm={handleCheckoutConfirm}
+            totalAmount={cartTotal}
+          />
 
           {/* Orders Tab */}
           {activeTab === 'orders' && (
@@ -484,18 +586,32 @@ const handleFilter = async () => {
                           <div>
                             <h3 className="font-semibold">Order #{order.id}</h3>
                             <p className="text-gray-600 text-sm">
-                              {new Date(order.date).toLocaleDateString()}
+                              {order.orderDate ? new Date(order.orderDate).toLocaleDateString() :
+                                order.date ? new Date(order.date).toLocaleDateString() : 'N/A'}
                             </p>
+                            {order.shippingAddress && (
+                              <p className="text-gray-500 text-xs mt-1">
+                                📍 {order.shippingAddress}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
-                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">
+                            <span className={`px-2 py-1 rounded-full text-sm ${order.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                              order.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
                               {order.status}
                             </span>
-                            <p className="font-semibold mt-1">${order.total.toFixed(2)}</p>
+                            <p className="font-semibold mt-1">
+                              ${(order.totalAmount || order.total || 0).toFixed(2)}
+                            </p>
                           </div>
                         </div>
                         <div className="text-sm text-gray-600">
-                          {order.items.length} items • {order.items.map(item => item.name).join(', ')}
+                          {order.items?.length || 0} items
+                          {order.items && order.items.length > 0 && order.items[0].name && (
+                            <span> • {order.items.map(item => item.name).join(', ')}</span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -557,7 +673,7 @@ const handleFilter = async () => {
                               {userProfile?.firstName || 'Not set'}
                             </p>
                           </div>
-                          
+
                           <div>
                             <span className="text-sm text-gray-500">Last Name</span>
                             <p className="text-gray-900 font-medium">
@@ -575,17 +691,17 @@ const handleFilter = async () => {
                           <div>
                             <span className="text-sm text-gray-500">Member Since</span>
                             <p className="text-gray-900 font-medium">
-                              {userProfile?.createdAt 
+                              {userProfile?.createdAt
                                 ? new Date(userProfile.createdAt).toLocaleDateString()
                                 : 'N/A'
                               }
                             </p>
                           </div>
-                          
+
                           <div>
                             <span className="text-sm text-gray-500">Last Login</span>
                             <p className="text-gray-900 font-medium">
-                              {userProfile?.lastLogin 
+                              {userProfile?.lastLogin
                                 ? new Date(userProfile.lastLogin).toLocaleDateString()
                                 : 'N/A'
                               }

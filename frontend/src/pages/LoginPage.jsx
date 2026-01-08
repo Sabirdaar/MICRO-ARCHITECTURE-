@@ -33,7 +33,12 @@ const Login = () => {
       // Clear form on success
       setEmail("");
       setPassword("");
-      navigate(from, { replace: true });
+
+      if (result.role === 'admin') {
+        navigate("/admin/orders", { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     }
 
     setLoading(false);

@@ -58,10 +58,11 @@ export function AuthProvider({ children }) {
         uid: user.id,
         email: user.email,
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        role: user.role
       });
 
-      return { success: true };
+      return { success: true, role: user.role };
     } catch (err) {
       console.error("Login error:", err);
       // Map Firebase error codes to user-friendly messages
@@ -93,10 +94,11 @@ export function AuthProvider({ children }) {
         email: response.user.email,
         firstName: response.user.firstName,
         lastName: response.user.lastName,
+        role: response.user.role
       });
 
       console.log('🎉 Registration completed successfully');
-      return { success: true };
+      return { success: true, role: response.user.role };
     } catch (error) {
       console.error('❌ Registration error:', error);
 
@@ -143,9 +145,10 @@ export function AuthProvider({ children }) {
         email: response.user.email,
         firstName: response.user.firstName,
         lastName: response.user.lastName,
+        role: response.user.role
       });
 
-      return { success: true };
+      return { success: true, role: response.user.role };
     } catch (error) {
       console.error('❌ Google login error:', error);
       let message = 'Google login failed. Please try again.';
@@ -180,6 +183,7 @@ export function AuthProvider({ children }) {
     clearError,
     error,
     loading,
+    userRole: userProfile?.role,
   };
 
   return (
