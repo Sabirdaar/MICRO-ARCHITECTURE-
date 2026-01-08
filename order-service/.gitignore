@@ -1,0 +1,43 @@
+# Maven
+target/
+.mvn/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Compiled files
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Database
+*.db
+*.sqlite
+*.h2.db
+
+# Environment
+.env
+.env.local
+
+# Build directories
+build/
+out/
+dist/
+
+# System files
+*.tmp
+*.temp
